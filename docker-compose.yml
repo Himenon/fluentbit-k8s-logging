@@ -1,0 +1,50 @@
+version: "3.7"
+services:
+  envoy:
+    # https://github.com/envoyproxy/envoy/commit/a2a1e3eed4214a38608ec223859fcfa8fb679b14
+    image: envoyproxy/envoy-dev:a2a1e3eed4214a38608ec223859fcfa8fb679b14
+    networks:
+      - envoymesh
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml
+      - ./logs/envoy:/app/logs
+    ports:
+      - "8000:8000"
+
+  nginx:
+    image: nginx:stable
+    networks:
+      - envoymesh
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./logs/nginx:/var/log/nginx
+    ports:
+      - "9000:9000"
+
+  web:
+    image: solsson/http-echo
+    networks:
+      - envoymesh
+    expose:
+      - 80
+    environment:  
+      - PORT=80
+    ports:
+      - "10000:80"
+
+  fluent-bit:
+    image: fluent/fluent-bit:1.8
+    ports:
+      - "2020:2020"
+    depends_on:
+      - proxy
+    environment:
+      - discovery.type=single-node
+    volumes:
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./fluent-bit/parser.conf:/fluent-bit/etc/parser.conf
+      - ./fluent-bit/record_date.lua:/fluent-bit/etc/record_date.lua
+      - ./logs:/app/logs
+
+networks:
+  envoymesh: {}
